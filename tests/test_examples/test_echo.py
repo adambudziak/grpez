@@ -1,15 +1,12 @@
-import asyncio
 import pathlib
-import random
 
 import grpc.aio
-from hypercorn import Config
-from hypercorn.asyncio import serve
 from pytest import fixture, mark
 
 import grpez
 from tests.test_examples.grpez_gen import echoservice_pb2 as pb
 from tests.test_examples.grpez_gen import echoservice_pb2_grpc as pb_grpc
+from tests.test_examples.utils import run_server
 
 echo_svc = grpez.Service("EchoService")
 
@@ -24,17 +21,10 @@ async def get_echo(echo: Echo) -> Echo:
 
 
 @fixture(scope="module")
-def port():
-    return random.randint(40_000, 50_000)
-
-
-@fixture(scope="module")
 async def server(port):
     app = grpez.Grpez(services=[echo_svc], reflection=True, gen_path=pathlib.Path(__file__).parent / "grpez_gen")
-    task = asyncio.create_task(serve(app, Config.from_mapping(bind=f"[::]:{port}")))
-    await asyncio.sleep(1)
-    yield
-    task.cancel()  # TODO very noisy, find a better way to shut it down gracefully
+    async with run_server(app, port):
+        yield
 
 
 @mark.parametrize("message", ("hello world", "general kenobi", "something longer" * 100))

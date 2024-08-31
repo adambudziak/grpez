@@ -9,6 +9,7 @@ dependencies = [
     "grpcio>=1.65.4",
     "pydantic>=2.8.2",
     "grpcio-tools>=1.66.1",
+    "grpcio-reflection>=1.66.1",
 ]
 requires-python = ">=3.12"
 readme = "README.md"

@@ -54,18 +54,52 @@ a comment.
 With grpez's approach, you can define the models, with as rich validation as you want,
 and generate a proto file from it, that will include comments extracted from validators.
 
+```python
+import asyncio
+import pathlib
+
+import grpez
+from hypercorn.asyncio import serve
+from hypercorn import Config
+
+hello_svc = grpez.Service("HelloService")
+
+
+class HelloRequest(grpez.RequestModel):
+    name: str
+
+
+class HelloResponse(grpez.ResponseModel):
+    greeting: str
+
+
+@hello_svc.rpc()
+async def get_greeting(hello: HelloRequest) -> HelloResponse:
+    return HelloResponse(greeting=f"hello {hello.name}")
+
+
+async def main():
+    app = grpez.Grpez(
+        services=[hello_svc], 
+        reflection=True, 
+        gen_path=pathlib.Path(__file__).parent / "grpez_gen"
+    )
+    await serve(app, Config())
+
+asyncio.run(main())
+```
+
+When you run the server, it'll first generate proto files from your code, then generate
+Python code using `protoc`, and finally hook it all together. It's possible to turn off generating
+on startup, which should be the default for production environments.
+
 If you want to stick to the "proto-first, code later" approach, that's still possible.
-
-
-TODO example
 
 
 ### Async-first
 
 It would be possible to support both sync and async endpoints, but it's a lot of work.
 Currently only async endpoints are supported.
-
-TODO examples
 
 ### Natural streaming
 
@@ -82,3 +116,14 @@ Interceptors don't have access to the request or response objects. grpez middlew
 a thin wrapper around interceptors that gives you the full context.
 
 TODO examples
+
+
+### Classic Servicer classes are also supported
+
+If you have a servicer class that you want to include in grpez (for the migration period only, right?)
+then you can do it exactly the same way like you'd do it with classic server:
+
+```python
+app = grpez.Grpez(...)
+add_YourServicer_to_server(servicer, app)
+```
