@@ -1,3 +1,5 @@
+from tests.test_examples.test_streaming import streaming_svc
+
 # grpez
 
 gRPC in Python made EZ.
@@ -107,7 +109,57 @@ You want your endpoint to return a unary response? Just return a pydantic model.
 You want it to stream results? Just make it an async generator. You want it to receive a stream?
 Make the stream an async generator.
 
-TODO examples
+```python
+import grpez
+from collections.abc import AsyncGenerator
+
+streaming_svc = grpez.Service("StreamingExample")
+
+
+class GetRangeRequest(grpez.RequestModel):
+    min_value: int
+    max_value: int
+
+
+class GetRangeResponse(grpez.ResponseModel):
+    value: int
+
+
+class SumNumbersRequest(grpez.RequestModel):
+    number: int
+
+
+class SumNumbersResponse(grpez.ResponseModel):
+    total: int
+
+
+class DoubleNumber(grpez.RequestModel, grpez.ResponseModel):
+    number: int
+
+
+@streaming_svc.rpc()
+async def get_range(r: GetRangeRequest) -> AsyncGenerator[GetRangeResponse, None]:
+    # example of streaming response (unary_stream)
+    for i in range(r.min_value, r.max_value + 1):
+        yield GetRangeResponse(value=i)
+
+
+@streaming_svc.rpc()
+async def sum_numbers(rs: AsyncGenerator[SumNumbersRequest, None]) -> SumNumbersResponse:
+    # example of streaming request (stream_unary)
+    total = 0
+    async for r in rs:
+        total += r.number
+
+    return SumNumbersResponse(total=total)
+
+
+@streaming_svc.rpc()
+async def double_numbers(rs: AsyncGenerator[DoubleNumber, None]) -> AsyncGenerator[DoubleNumber, None]:
+    # example of bidirectional streaming (stream_stream)
+    async for r in rs:
+        yield DoubleNumber(number=r.number * 2)
+```
 
 
 ### Middlewares instead of interceptors
