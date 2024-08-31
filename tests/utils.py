@@ -15,3 +15,14 @@ async def run_server(app: Grpez, port: int):
     yield
     shutdown_event.set()
     await asyncio.sleep(0.2)
+
+
+class _AnyStr:
+    def __eq__(self, other):
+        return isinstance(other, str)
+
+    def __repr__(self):
+        return '<AnyStr>'
+
+
+AnyStr = _AnyStr()

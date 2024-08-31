@@ -121,9 +121,11 @@ TODO examples
 ### Classic Servicer classes are also supported
 
 If you have a servicer class that you want to include in grpez (for the migration period only, right?)
-then you can do it exactly the same way like you'd do it with classic server:
+then you can do it exactly the same way like you'd do it with a normal grpc server:
 
 ```python
 app = grpez.Grpez(...)
 add_YourServicer_to_server(servicer, app)
 ```
+
+That way you gain ASGI support, and you can start the slow migration towards native-grpez.

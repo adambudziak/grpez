@@ -6,7 +6,7 @@ from pytest import fixture, mark
 import grpez
 from tests.test_examples.grpez_gen import echoservice_pb2 as pb
 from tests.test_examples.grpez_gen import echoservice_pb2_grpc as pb_grpc
-from tests.test_examples.utils import run_server
+from tests.utils import run_server
 
 echo_svc = grpez.Service("EchoService")
 
