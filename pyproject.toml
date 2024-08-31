@@ -1,0 +1,28 @@
+[project]
+name = "grpez"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "adambudziak", email = "adambudziak@protonmail.com"},
+]
+dependencies = [
+    "grpcio>=1.65.4",
+    "pydantic>=2.8.2",
+    "grpcio-tools>=1.65.4",
+]
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff>=0.5.7",
+]
