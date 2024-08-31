@@ -1,5 +1,3 @@
-from tests.test_examples.test_streaming import streaming_svc
-
 # grpez
 
 gRPC in Python made EZ.
