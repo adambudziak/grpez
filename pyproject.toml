@@ -1,7 +1,7 @@
 [project]
 name = "grpez"
 version = "0.1.0"
-description = "Default template for PDM package"
+description = "gRPC made EZ"
 authors = [
     {name = "adambudziak", email = "adambudziak@protonmail.com"},
 ]

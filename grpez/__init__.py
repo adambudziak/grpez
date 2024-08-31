@@ -89,7 +89,6 @@ class Grpez:
             self._registered_method_handlers[f"/{path}/{h_path}"] = h
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        print(scope)
         if scope["type"] == "lifespan":
             while True:
                 message = await receive()
@@ -104,7 +103,7 @@ class Grpez:
             request_bytes = await build_message(receive)
             request = grpc_handler.request_deserializer(
                 request_bytes[5:]
-            )  # TODO(adambudziak) fix [5:]
+            )
             response = await handler(request=request)  # TODO(adambudziak) fix context
             response_bytes = grpc_handler.response_serializer(
                 response
@@ -144,10 +143,6 @@ def create_grpc_message(message: bytes) -> bytes:
 
 def encode_response(data: bytes, *, compress: bool) -> bytes:
     return struct.pack(">BI", int(compress), len(data)) + data
-
-
-def encode_trailers(data: bytes, *, compress: bool) -> bytes:
-    return struct.pack(">BI", 0x80 | compress, len(data)) + data
 
 
 async def build_message(receive: Receive) -> bytes:
