@@ -8,12 +8,18 @@ authors = [
 dependencies = [
     "grpcio>=1.65.4",
     "pydantic>=2.8.2",
-    "grpcio-tools>=1.65.4",
+    "grpcio-tools>=1.66.1",
 ]
 requires-python = ">=3.12"
 readme = "README.md"
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+test = [
+    "Hypercorn @ git+https://github.com/adambudziak/hypercorn",
+    "pytest>=8.3.2",
+    "pytest-asyncio~=0.21.0",
+]
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
@@ -25,4 +31,39 @@ distribution = true
 [tool.pdm.dev-dependencies]
 dev = [
     "ruff>=0.5.7",
+    "ipython>=8.27.0",
+]
+
+[tool.pdm.scripts]
+fmt = "ruff format grpez tests"
+ruff_lint = "ruff check --fix grpez tests"
+lint = { composite = ["fmt", "ruff_lint" ]}
+
+test = "pytest -x tests"
+
+[tool.pytest.ini_options]
+asyncio_mode = 'auto'
+
+[tool.ruff]
+line-length = 120
+
+exclude = ["*_pb2.py", "*pb2_grpc.py"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
 ]
