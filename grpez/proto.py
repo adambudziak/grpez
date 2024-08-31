@@ -9,7 +9,13 @@ def emit_proto_service(svc_name: str, handlers: dict[str, Handler]):
     for path, handler in handlers.items():
         msg_types.add(handler.request_type)
         msg_types.add(handler.response_type)
-        rpcs.append((path, handler.request_type.__name__, handler.response_type.__name__))
+        rpcs.append(
+            (
+                path,
+                ("stream " if handler.rpc_type.startswith("stream") else "") + handler.request_type.__name__,
+                ("stream " if handler.rpc_type.endswith("stream") else "") + handler.response_type.__name__,
+            )
+        )
 
     svc = f"""
 syntax = "proto3";
@@ -36,4 +42,4 @@ message {m.__name__} {{
 """.strip()
 
 
-_type_mapping = {str: "string", list[str]: "repeated string"}
+_type_mapping = {str: "string", list[str]: "repeated string", int: "int64"}

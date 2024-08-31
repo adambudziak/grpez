@@ -6,7 +6,7 @@ from grpc_reflection.v1alpha import reflection_pb2, reflection_pb2_grpc
 from pytest import fixture, mark
 
 import grpez
-from tests.utils import run_server, AnyStr
+from tests.utils import AnyStr, run_server
 
 hello_svc = grpez.Service("HelloService")
 
@@ -38,15 +38,7 @@ async def server(port):
         ({"list_services": "HelloService"}, [{"list_services_response": {"service": [{"name": "HelloService"}]}}]),
         (
             {"file_containing_symbol": "HelloService"},
-            [
-                {
-                    "file_descriptor_response": {
-                        "file_descriptor_proto": [
-                            AnyStr
-                        ]
-                    }
-                }
-            ],
+            [{"file_descriptor_response": {"file_descriptor_proto": [AnyStr]}}],
         ),
     ),
 )

@@ -1,6 +1,6 @@
 import pathlib
 import struct
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Generator, Sequence
 from typing import (
     Literal,
     NotRequired,
@@ -68,11 +68,13 @@ class Grpez:
             rpc_handler = self._services[svc_path].rpc_handler(handler_path)
 
             if rpc_handler.is_streaming_request():
-                # TODO(adambudziak) do proper async generator
-                request_bytes = (await build_message(receive))[5:]
+                # TODO(adambudziak) do proper async generator, pipe the messages as they come
+                #  to the handler instead of aggregating them all first and then cutting
+                raw_request_bytes = await build_message(receive)
 
                 async def request_gen():
-                    yield request_bytes
+                    for chunk in cut_into_messages(raw_request_bytes):
+                        yield chunk
 
                 request = request_gen()
 
@@ -94,12 +96,11 @@ class Grpez:
 
             if rpc_handler.is_streaming_response():
                 async for response in rpc_handler(request):
-                    await send(
-                        {
-                            "type": "http.response.body",
-                            "body": create_grpc_message(response),
-                        }
-                    )
+                    # TODO(adambudziak) check if it makes sense to do it like that for small messages
+                    #  maybe it's better to chunk messages to send bigger frames?
+                    #  Or hypercorn does it under the hood?
+                    await send({"type": "http.response.body", "body": create_grpc_message(response), "more_body": True})
+                await send({"type": "http.response.body", "body": b""})
             else:
                 response = await rpc_handler(request)
                 await send(
@@ -122,6 +123,14 @@ def create_grpc_message(message: bytes) -> bytes:
     message_length = len(message)
     header = struct.pack(">?I", compressed_flag, message_length)
     return header + message
+
+
+def cut_into_messages(data: bytes) -> Generator[bytes, None, None]:
+    i = 0
+    while i < len(data):
+        _, length = struct.unpack(">BI", data[i : i + 5])
+        yield data[i + 5 : i + 5 + length]
+        i += 5 + length
 
 
 async def build_message(receive: Receive) -> bytes:

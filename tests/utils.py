@@ -22,7 +22,7 @@ class _AnyStr:
         return isinstance(other, str)
 
     def __repr__(self):
-        return '<AnyStr>'
+        return "<AnyStr>"
 
 
 AnyStr = _AnyStr()

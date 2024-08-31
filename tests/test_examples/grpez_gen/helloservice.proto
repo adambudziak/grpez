@@ -4,10 +4,10 @@ service HelloService {
     rpc GetGreeting(HelloRequest) returns (HelloResponse) {}
 }
 
-message HelloRequest {
-    string name = 1;
-}
-
 message HelloResponse {
     string greeting = 1;
+}
+
+message HelloRequest {
+    string name = 1;
 }
