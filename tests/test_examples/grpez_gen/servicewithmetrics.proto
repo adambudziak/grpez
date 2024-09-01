@@ -1,0 +1,9 @@
+syntax = "proto3";
+    
+service ServiceWithMetrics {
+    rpc DoThing(Thing) returns (Thing) {}
+}
+
+message Thing {
+    int64 value = 1;
+}

@@ -26,7 +26,42 @@ You can mix grpez with any other ASGI application and run them together. You can
 One caveat: gRPC needs HTTP/2 and currently hypercorn is the only ASGI implementation
 that supports that.
 
-TODO example
+
+```python
+import pathlib
+
+import grpez
+import prometheus_client
+from hypercorn.middleware import DispatcherMiddleware
+from hypercorn.asyncio import serve
+from hypercorn import Config
+
+svc = grpez.Service("ServiceWithMetrics")
+
+
+class Thing(grpez.RequestModel, grpez.ResponseModel):
+    value: int
+
+
+@svc.rpc()
+async def do_thing(r: Thing) -> Thing:
+    return Thing(value=r.value * 3)
+
+
+async def main():
+    app = grpez.Grpez(
+        services=[svc], 
+        reflection=True, 
+        gen_path=pathlib.Path(__file__).parent / "grpez_gen"
+    )
+    dispatcher_app = DispatcherMiddleware({
+        "/metrics": prometheus_client.make_asgi_app(),
+        "": app
+    })
+    await serve(dispatcher_app, Config())
+    
+
+```
 
 ### Native integration with Pydantic
 
