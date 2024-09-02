@@ -98,8 +98,13 @@ class GrpezStreamUnary:
         self.result_type = result_type
 
     async def __call__(self, raw_requests: AsyncGenerator[bytes, None]) -> bytes:
-        requests = (self._deserializer(r) async for r in raw_requests)
-        response = await self._cb(requests)
+        async def stream_deserialized():
+            async for r in raw_requests:
+                yield self._deserializer(r)
+
+        # requests = (self._deserializer(r) async for r in raw_requests)
+        # response = await self._cb(requests)
+        response = await self._cb(stream_deserialized())
         return self._serializer(response)
 
     @staticmethod

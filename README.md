@@ -24,7 +24,7 @@ If you dislike any of the features, there are ways to just use old-style grpc/pr
 You can mix grpez with any other ASGI application and run them together. You can even mix it with FastAPI.
 
 One caveat: gRPC needs HTTP/2 and currently hypercorn is the only ASGI implementation
-that supports that.
+that supports that. Granian might also be used once it supports HTTP/2 trailers.
 
 
 ```python
@@ -72,9 +72,6 @@ model that will be your interface when reading request contents.
 
 The generated proto class is still there, but you never need to see it (if you do for whatever reason,
 there are ways).
-
-TODO example
-
 
 ### Define endpoints in code, generate proto from that
 

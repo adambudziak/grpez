@@ -1,6 +1,6 @@
 import pathlib
 import struct
-from collections.abc import Awaitable, Callable, Generator, Sequence
+from collections.abc import Awaitable, Callable, Generator, Sequence, AsyncGenerator
 from typing import (
     Literal,
     NotRequired,
@@ -68,15 +68,7 @@ class Grpez:
             rpc_handler = self._services[svc_path].rpc_handler(handler_path)
 
             if rpc_handler.is_streaming_request():
-                # TODO(adambudziak) do proper async generator, pipe the messages as they come
-                #  to the handler instead of aggregating them all first and then cutting
-                raw_request_bytes = await build_message(receive)
-
-                async def request_gen():
-                    for chunk in cut_into_messages(raw_request_bytes):
-                        yield chunk
-
-                request = request_gen()
+                request = stream_request(receive)
 
             else:
                 request = (await build_message(receive))[5:]
@@ -95,12 +87,7 @@ class Grpez:
             )
 
             if rpc_handler.is_streaming_response():
-                async for response in rpc_handler(request):
-                    # TODO(adambudziak) check if it makes sense to do it like that for small messages
-                    #  maybe it's better to chunk messages to send bigger frames?
-                    #  Or hypercorn does it under the hood?
-                    await send({"type": "http.response.body", "body": create_grpc_message(response), "more_body": True})
-                await send({"type": "http.response.body", "body": b""})
+                await stream_response(rpc_handler(request), send)
             else:
                 response = await rpc_handler(request)
                 await send(
@@ -131,6 +118,52 @@ def cut_into_messages(data: bytes) -> Generator[bytes, None, None]:
         _, length = struct.unpack(">BI", data[i : i + 5])
         yield data[i + 5 : i + 5 + length]
         i += 5 + length
+
+
+async def stream_response(response_gen: AsyncGenerator[bytes, None], send: Send):
+    # TODO(adambudziak) check if it makes sense at all or hypercorn buffers internally
+    MAX_BUFFER_SIZE = 1 << 16
+
+    buffer = bytearray()
+    async for response in response_gen:
+        frame = struct.pack('>BI', False, len(response)) + response
+        if buffer and len(buffer) + len(frame) > MAX_BUFFER_SIZE:
+            await send(
+                {"type": "http.response.body", "body": bytes(buffer), "more_body": True}
+            )
+            buffer.clear()
+        buffer.extend(frame)
+
+    await send(
+        {"type": "http.response.body", "body": bytes(buffer)}
+    )
+
+
+async def stream_request(receive: Receive) -> AsyncGenerator[bytes, None]:
+    buf = bytearray()
+    more_body = True
+    while more_body:
+        payload = await receive()
+        if payload["type"] != "http.request":
+            raise NotImplementedError(f"got unexpected payload {payload}")
+
+        more_body = payload.get('more_body', False)
+        if not payload['body']:
+            continue
+
+        buf.extend(payload['body'])
+        i = 0
+        while i + 5 <= len(buf):
+            compressed, length = struct.unpack('>BI', buf[i:i+5])
+            msg = buf[i+5:i+5+length]
+            if len(msg) < length:
+                buf = buf[:i]
+                break
+            else:
+                yield bytes(msg)
+            i += 5 + length
+        if i == len(buf):
+            buf.clear()
 
 
 async def build_message(receive: Receive) -> bytes:

@@ -6,12 +6,12 @@ rpc SumNumbers(stream SumNumbersRequest) returns (SumNumbersResponse) {}
 rpc DoubleNumbers(stream DoubleNumber) returns (stream DoubleNumber) {}
 }
 
-message DoubleNumber {
-    int64 number = 1;
-}
-
 message SumNumbersResponse {
     int64 total = 1;
+}
+
+message DoubleNumber {
+    int64 number = 1;
 }
 
 message GetRangeRequest {
