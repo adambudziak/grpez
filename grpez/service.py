@@ -4,6 +4,7 @@ import os
 import pathlib
 import re
 import sys
+import typing
 from collections.abc import AsyncGenerator
 from functools import wraps
 from typing import get_args
@@ -12,6 +13,7 @@ import grpc._utilities
 import grpc_tools.protoc
 from pydantic import BaseModel
 
+from grpez.dep import D
 from grpez.handler import (
     CompatStreamStream,
     CompatStreamUnary,
@@ -129,6 +131,8 @@ class Service:
             streaming_request = False
             streaming_response = False
 
+            dependencies = {}
+
             for name, ann in fn.__annotations__.items():
                 if name != "return":
                     if getattr(ann, "__origin__", None) is AsyncGenerator:
@@ -139,11 +143,16 @@ class Service:
                         if send_t is not None:
                             raise ValueError("grpez doesn't support sending to endpoints")
                         streaming_request = True
+                    elif typing.get_origin(ann) is typing.Annotated:
+                        for ann_ in typing.get_args(ann):
+                            if isinstance(ann_, D):
+                                dependencies[name] = ann_
                     elif issubclass(ann, RequestModel):
                         if request_type is None or ann == request_type:
                             request_name, request_type = name, ann
                         else:
                             raise ValueError("you can only set one request model for an endpoint")
+
                 elif name == "return":
                     if getattr(ann, "__origin__", None) is AsyncGenerator:
                         result_type, send_t = get_args(ann)
@@ -168,7 +177,9 @@ class Service:
 
                 @wraps(fn)
                 async def inner(request):
-                    new_kwargs = {request_name: request_type.from_protobuf(request)}
+                    new_kwargs = {request_name: request_type.from_protobuf(request)} | {
+                        dep_name: await dep.get() for dep_name, dep in dependencies.items()
+                    }
                     result = await fn(**new_kwargs)
                     return result.to_protobuf(self._message_proto_types[result_type])
 
@@ -180,8 +191,10 @@ class Service:
 
                 @wraps(fn)
                 async def inner(request):
+                    new_kwargs = {request_name: request_type.from_protobuf(request)} | {
+                        dep_name: await dep.get() for dep_name, dep in dependencies.items()
+                    }
                     result_type_ = self._message_proto_types[result_type]
-                    new_kwargs = {request_name: request_type.from_protobuf(request)}
                     async for result in fn(**new_kwargs):
                         yield result.to_protobuf(result_type_)
 
@@ -192,8 +205,11 @@ class Service:
 
                 @wraps(fn)
                 async def inner(request_gen):
+                    new_kwargs = {request_name: (request_type.from_protobuf(r) async for r in request_gen)} | {
+                        dep_name: await dep.get() for dep_name, dep in dependencies.items()
+                    }
                     result_type_ = self._message_proto_types[result_type]
-                    result = await fn(**{request_name: (request_type.from_protobuf(r) async for r in request_gen)})
+                    result = await fn(**new_kwargs)
                     return result.to_protobuf(result_type_)
 
                 self._handlers[path_] = Handler(
@@ -205,9 +221,10 @@ class Service:
                 @wraps(fn)
                 async def inner(request_gen):
                     result_type_ = self._message_proto_types[result_type]
-                    async for result in fn(
-                        **{request_name: (request_type.from_protobuf(r) async for r in request_gen)}
-                    ):
+                    new_kwargs = {request_name: (request_type.from_protobuf(r) async for r in request_gen)} | {
+                        dep_name: await dep.get() for dep_name, dep in dependencies.items()
+                    }
+                    async for result in fn(**new_kwargs):
                         yield result.to_protobuf(result_type_)
 
                 self._handlers[path_] = Handler(

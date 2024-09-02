@@ -1,6 +1,6 @@
 import pathlib
 import struct
-from collections.abc import Awaitable, Callable, Generator, Sequence, AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Sequence
 from typing import (
     Literal,
     NotRequired,
@@ -126,17 +126,13 @@ async def stream_response(response_gen: AsyncGenerator[bytes, None], send: Send)
 
     buffer = bytearray()
     async for response in response_gen:
-        frame = struct.pack('>BI', False, len(response)) + response
+        frame = struct.pack(">BI", False, len(response)) + response
         if buffer and len(buffer) + len(frame) > MAX_BUFFER_SIZE:
-            await send(
-                {"type": "http.response.body", "body": bytes(buffer), "more_body": True}
-            )
+            await send({"type": "http.response.body", "body": bytes(buffer), "more_body": True})
             buffer.clear()
         buffer.extend(frame)
 
-    await send(
-        {"type": "http.response.body", "body": bytes(buffer)}
-    )
+    await send({"type": "http.response.body", "body": bytes(buffer)})
 
 
 async def stream_request(receive: Receive) -> AsyncGenerator[bytes, None]:
@@ -147,15 +143,15 @@ async def stream_request(receive: Receive) -> AsyncGenerator[bytes, None]:
         if payload["type"] != "http.request":
             raise NotImplementedError(f"got unexpected payload {payload}")
 
-        more_body = payload.get('more_body', False)
-        if not payload['body']:
+        more_body = payload.get("more_body", False)
+        if not payload["body"]:
             continue
 
-        buf.extend(payload['body'])
+        buf.extend(payload["body"])
         i = 0
         while i + 5 <= len(buf):
-            compressed, length = struct.unpack('>BI', buf[i:i+5])
-            msg = buf[i+5:i+5+length]
+            compressed, length = struct.unpack(">BI", buf[i : i + 5])
+            msg = buf[i + 5 : i + 5 + length]
             if len(msg) < length:
                 buf = buf[:i]
                 break

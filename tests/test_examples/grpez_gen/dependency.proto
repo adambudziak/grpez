@@ -1,0 +1,11 @@
+syntax = "proto3";
+    
+service Dependency {
+    rpc Foo(Message) returns (Message) {}
+rpc Bar(Message) returns (Message) {}
+rpc Baz(Message) returns (Message) {}
+}
+
+message Message {
+    int64 value = 1;
+}
