@@ -16,7 +16,14 @@ as what you can get with REST.
 ## Installation
 
 ```shell
-pip install hypercorn 'git+https://github.com/adambudziak/grpez'  # pypi coming soon
+# Note: you must install hypercorn from my fork, 
+# it includes a critical fix for grpc to work at all
+# see this PR for more details: https://github.com/pgjones/hypercorn/pull/255
+
+# pypi for grpez is coming soon
+
+pip install 'git+https://github.com/adambudziak/hypercorn' \
+  'git+https://github.com/adambudziak/grpez'
 ```
 
 ## Quickstart

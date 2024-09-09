@@ -6,7 +6,7 @@ authors = [
     {name = "adambudziak", email = "adambudziak@protonmail.com"},
 ]
 dependencies = [
-    "grpcio>=1.65.4",
+    "grpcio>=1.66.1",
     "pydantic>=2.8.2",
     "grpcio-tools>=1.66.1",
     "grpcio-reflection>=1.66.1",
