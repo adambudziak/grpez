@@ -39,10 +39,9 @@ Serde = namedtuple("Serde", "serializer deserializer")
 
 
 @dataclass
-class HandlerContext:
-    handler: Handler
-    serializer: Callable
-    deserializer: Callable
+class HandlerCallDetails:
+    method: str
+    invocation_metadata: dict[str, str]
 
 
 class GrpezUnaryUnary:

@@ -7,9 +7,11 @@ from typing import (
     TypedDict,
 )
 
+import grpc
 from grpc_reflection.v1alpha import _async as reflection_aio
 from grpc_reflection.v1alpha import reflection_pb2_grpc
 
+from grpez.handler import HandlerCallDetails, RpcHandler
 from grpez.service import GrpcServiceWrapper, Service
 
 
@@ -34,12 +36,21 @@ Send = Callable[[dict], Awaitable]
 
 
 class Grpez:
-    def __init__(self, services: Sequence[Service], *, reflection: bool = False, gen_path: pathlib.Path):
+    def __init__(
+        self,
+        services: Sequence[Service],
+        *,
+        reflection: bool = False,
+        gen_path: pathlib.Path,
+        interceptors: Sequence[grpc.aio.ServerInterceptor] = tuple(),
+    ):
         self._services: dict[str, Service | GrpcServiceWrapper] = {svc.name: svc for svc in services}
         self._reflection = reflection
 
         self._generic_rpc_handlers = {}
         self._registered_method_handlers = {}
+
+        self._interceptors = interceptors
 
         for svc in self._services.values():
             svc.compile(gen_path)
@@ -65,7 +76,13 @@ class Grpez:
                     await send({"type": "lifespan.shutdown.complete"})
         elif scope["type"] == "http":
             svc_path, handler_path = scope["path"].split("/")[1:]
+            handler_call_details = HandlerCallDetails(
+                scope["path"], {k.decode(): v.decode() for k, v in scope["headers"]}
+            )
             rpc_handler = self._services[svc_path].rpc_handler(handler_path)
+
+            if self._interceptors:
+                rpc_handler = await self._reduce_interceptors(rpc_handler, handler_call_details)
 
             if rpc_handler.is_streaming_request():
                 request = stream_request(receive)
@@ -103,6 +120,22 @@ class Grpez:
                     "headers": [(b"grpc-status", b"0"), (b"grpc-message", b"OK")],
                 }
             )
+
+    async def _reduce_interceptors(self, rpc_handler: RpcHandler, handler_call_details: HandlerCallDetails):
+        async def leaf(_):
+            return rpc_handler
+
+        def get_continuation(_continuation, _interceptor):
+            async def inner(h: HandlerCallDetails):
+                return await _interceptor.intercept_service(_continuation, h)
+
+            return inner
+
+        continuation = leaf
+        for interceptor in reversed(self._interceptors):
+            continuation = get_continuation(continuation, interceptor)
+
+        return await continuation(handler_call_details)
 
 
 def create_grpc_message(message: bytes) -> bytes:

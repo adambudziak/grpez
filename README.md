@@ -11,6 +11,79 @@ suddenly decide that you want to use gRPC for whatever reason, that is going to 
 The goal of `grpez` is to bring gRPC development in Python on similar modern level
 as what you can get with REST.
 
+[Examples](tests/test_examples)
+
+## Installation
+
+```shell
+pip install 'git+https://github.com/adambudziak/grpez'  # pypi coming soon
+```
+
+## Quickstart
+
+```python
+# server.py
+import asyncio
+import hypercorn.asyncio
+import pathlib
+import grpez
+
+svc = grpez.Service("HelloWorld")
+
+
+class GreetingRequest(grpez.RequestModel):
+    name: str
+
+
+class GreetingResponse(grpez.ResponseModel):
+    greeting: str
+
+
+@svc.rpc()
+async def greeting(r: GreetingRequest) -> GreetingResponse:
+    return GreetingResponse(greeting=f'hello, {r.name}')
+
+
+app = grpez.Grpez(
+    services=[svc],
+    reflection=True,
+    gen_path=pathlib.Path(__file__) / "grpez_gen",  # where the proto will land
+)
+
+asyncio.run(hypercorn.asyncio.serve(app, hypercorn.Config()))
+```
+
+If you run the script above, grpez will do a few things:
+
+#### 1. generate a proto file from your endpoints. 
+
+It's contents will look as follows, it's stored in the `grpez_gen` directory.
+
+```protobuf
+syntax = "proto3";
+    
+service HelloWorld {
+    rpc Greeting(GreetingRequest) returns (GreetingResponse) {}
+}
+
+message GreetingRequest {
+    string name = 1;
+}
+
+message GreetingResponse {
+    string greeting = 1;
+}
+```
+
+#### 2. generate python grpc files from the proto
+
+They're stored right besides the proto file.
+
+#### 3. hook it all together at startup, so your endpoints are called on requests
+
+Most of the heavy lifting is done eagerly, so handling requests is as lightweight as possible.
+
+#### 4. run a server on port 8000 with reflection enabled
 
 ## Features
 
@@ -133,6 +206,53 @@ If you want to stick to the "proto-first, code later" approach, that's still pos
 It would be possible to support both sync and async endpoints, but it's a lot of work.
 Currently only async endpoints are supported.
 
+### FastAPI-like Dependency Injection mechanism
+
+It's somewhat limited at the moment, but you can define any callable that will be passed to your
+endpoints at runtime
+
+```python
+import grpez
+from typing import Annotated
+
+svc = grpez.Service("Dependency")
+
+
+class App:
+    def __init__(self):
+        self.counter = 0
+
+
+async def get_app():
+    return App()
+
+
+class Message(grpez.RequestModel, grpez.ResponseModel):
+    value: int
+
+
+@svc.rpc()
+async def foo(msg: Message, app: Annotated[App, grpez.D(get_app, scope="server")]) -> Message:
+    app.counter += msg.value
+    return Message(value=app.counter)
+
+
+@svc.rpc()
+async def bar(msg: Message, app: Annotated[App, grpez.D(get_app, scope="server")]) -> Message:
+    app.counter += msg.value * 2
+    return Message(value=app.counter)
+
+
+@svc.rpc()
+async def baz(msg: Message, app: Annotated[App, grpez.D(get_app)]) -> Message:
+    app.counter += msg.value * 3
+    return Message(value=app.counter)
+```
+
+In the example above, `foo` and `bar` will share the same `app` instance, and it will be created
+at startup and once only. On the other hand, `baz` will get a fresh instance of `app` on every call.
+
+
 ### Natural streaming
 
 You want your endpoint to return a unary response? Just return a pydantic model.
@@ -200,10 +320,22 @@ a thin wrapper around interceptors that gives you the full context.
 TODO examples
 
 
+### Interceptors are partially supported
+
+Fully supporting interceptors is difficult as they can access the RPC handler, and
+grpez uses a different implementation than plain gRPC. In general, you should prefer using
+grpez middlewares instead of interceptors, but for the migration process, it's probably useful to be able
+to just use what you already have.
+
+Reading `handler_call_details` is fully supported (see [example](tests/test_examples/test_interceptor.py)), and
+you don't need any changes to your interceptor to do it. If your interceptor changes the rpc_handler
+used for the call, or accesses some properties of it, then it's currently not supported by the lib, so file an issue.
+
+
 ### Classic Servicer classes are also supported
 
 If you have a servicer class that you want to include in grpez (for the migration period only, right?)
-then you can do it exactly the same way like you'd do it with a normal grpc server:
+then you can do it exactly the same way, like you'd do it with a normal grpc server:
 
 ```python
 app = grpez.Grpez(...)

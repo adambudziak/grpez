@@ -1,0 +1,9 @@
+syntax = "proto3";
+    
+service Interceptor {
+    rpc Hello(InterceptorExample) returns (InterceptorExample) {}
+}
+
+message InterceptorExample {
+    string greeting = 1;
+}

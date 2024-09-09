@@ -10,8 +10,9 @@ message GetRangeResponse {
     int64 value = 1;
 }
 
-message DoubleNumber {
-    int64 number = 1;
+message GetRangeRequest {
+    int64 min_value = 1;
+int64 max_value = 2;
 }
 
 message SumNumbersRequest {
@@ -22,7 +23,6 @@ message SumNumbersResponse {
     int64 total = 1;
 }
 
-message GetRangeRequest {
-    int64 min_value = 1;
-int64 max_value = 2;
+message DoubleNumber {
+    int64 number = 1;
 }
