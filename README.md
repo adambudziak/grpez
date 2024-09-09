@@ -16,7 +16,7 @@ as what you can get with REST.
 ## Installation
 
 ```shell
-pip install 'git+https://github.com/adambudziak/grpez'  # pypi coming soon
+pip install hypercorn 'git+https://github.com/adambudziak/grpez'  # pypi coming soon
 ```
 
 ## Quickstart
@@ -47,7 +47,7 @@ async def greeting(r: GreetingRequest) -> GreetingResponse:
 app = grpez.Grpez(
     services=[svc],
     reflection=True,
-    gen_path=pathlib.Path(__file__) / "grpez_gen",  # where the proto will land
+    gen_path=pathlib.Path("grpez_gen"),  # where the proto will land
 )
 
 asyncio.run(hypercorn.asyncio.serve(app, hypercorn.Config()))
@@ -251,6 +251,8 @@ async def baz(msg: Message, app: Annotated[App, grpez.D(get_app)]) -> Message:
 
 In the example above, `foo` and `bar` will share the same `app` instance, and it will be created
 at startup and once only. On the other hand, `baz` will get a fresh instance of `app` on every call.
+
+It's currently impossible to define sub-dependencies, file an issue if you want this.
 
 
 ### Natural streaming
